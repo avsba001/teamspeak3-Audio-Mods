@@ -141,3 +141,17 @@ jobs:
         run: |
           mv tmp/**/* deploy/plugins/
       - name: Install zip
+        uses: montudor/action-zip@v1
+      - name: Zip output
+        run: zip -qq -r ../${{ env.PLUGIN_NAME }}.zip .
+        working-directory: deploy
+      - name: Rename release
+        run: |
+          mv ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ./${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
+          draft: false
+          prerelease: false
