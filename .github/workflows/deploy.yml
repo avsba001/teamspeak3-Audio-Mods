@@ -13,6 +13,7 @@ on:
 
 env:
   PLUGIN_NAME: JUL14Ns_Audio_Mods
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   prebuild:
@@ -65,7 +66,7 @@ jobs:
           name: prebuild
           path: .
       - name: Setup MSVC (Windows only)
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v2
         if: startsWith(matrix.os, 'windows-')
         with:
           arch: ${{ matrix.arch }}
