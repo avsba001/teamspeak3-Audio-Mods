@@ -115,7 +115,7 @@ jobs:
           path: ${{ env.PLUGIN_NAME }}_[win|linux|mac]*.*
 
   release:
-    if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     steps:
@@ -145,13 +145,20 @@ jobs:
       - name: Zip output
         run: zip -qq -r ../${{ env.PLUGIN_NAME }}.zip .
         working-directory: deploy
+      - name: Generate release tag
+        run: |
+          TAG="v0.0.0-auto-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+          echo "RELEASE_TAG=${TAG}" >> $GITHUB_ENV
+
       - name: Rename release
         run: |
-          mv ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
+          mv ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}.${{ env.RELEASE_TAG }}.ts3_plugin
       - name: Release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
           files: |
-            ./${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
+            ./${{ env.PLUGIN_NAME }}.${{ env.RELEASE_TAG }}.ts3_plugin
           draft: false
           prerelease: false
