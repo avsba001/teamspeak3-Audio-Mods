@@ -6,19 +6,19 @@ m_ui(std::make_unique<Ui::visualizeui>())
 {
 	m_ui->setupUi(this);
 
-	setWindowTitle("JUL14Ns Audio Mods :: Visualizer");
+	setWindowTitle("JUL14Ns 音频增强 :: 可视化");
 
 	setWindowFlags(windowFlags() & ~Qt::WindowContextHelpButtonHint);
 
 	m_ui->agcPlot->axisY->setRange(0, 2);
-	m_ui->agcPlot->axisY->setTitleText("Calculated AGC Adjustment (Factor)");
-	m_ui->agcPlot->axisX->setTitleText("Time since monitoring start");
+	m_ui->agcPlot->axisY->setTitleText("计算得到的 AGC 调整（倍数）");
+	m_ui->agcPlot->axisX->setTitleText("自监测开始后的时间");
 	m_ui->lufsPlot->axisY->setRange(-70, 10);
-	m_ui->lufsPlot->axisY->setTitleText("Volume before Compressor (LUFS)");
-	m_ui->lufsPlot->axisX->setTitleText("Time since monitoring start");
+	m_ui->lufsPlot->axisY->setTitleText("压缩前音量（LUFS）");
+	m_ui->lufsPlot->axisX->setTitleText("自监测开始后的时间");
 	m_ui->lufsAgcPlot->axisY->setRange(-70, 10);
-	m_ui->lufsAgcPlot->axisY->setTitleText("Volume after Compressor (LUFS)");
-	m_ui->lufsAgcPlot->axisX->setTitleText("Time since monitoring start");
+	m_ui->lufsAgcPlot->axisY->setTitleText("压缩后音量（LUFS）");
+	m_ui->lufsAgcPlot->axisX->setTitleText("自监测开始后的时间");
 
 	time = QTime::currentTime();
 }

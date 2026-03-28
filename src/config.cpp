@@ -8,7 +8,7 @@ m_settings(std::make_unique<QSettings>(configLocation, QSettings::IniFormat, thi
 {
 	m_ui->setupUi(this);
 
-	setWindowTitle("JUL14Ns Audio Mods :: Config");
+	setWindowTitle("JUL14Ns 音频增强 :: 配置");
 
 	// Connect UI Elements.
 	connect(m_ui->pbOk, &QPushButton::clicked, this, [&] {

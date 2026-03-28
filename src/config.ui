@@ -14,7 +14,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Dialog</string>
+   <string>配置</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
@@ -36,20 +36,20 @@
        </sizepolicy>
       </property>
       <attribute name="title">
-       <string>Input</string>
+       <string>输入</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_3">
        <item>
         <widget class="QCheckBox" name="input_filter">
          <property name="text">
-          <string>Filter Microphone with RNNoise</string>
+          <string>使用 RNNoise 过滤麦克风输入</string>
          </property>
         </widget>
        </item>
        <item>
         <widget class="QCheckBox" name="input_vad">
          <property name="text">
-          <string>Use RNNoise for VAD</string>
+          <string>使用 RNNoise 进行 VAD</string>
          </property>
          <property name="checked">
           <bool>false</bool>
@@ -61,7 +61,7 @@
          <item>
           <widget class="QLabel" name="vad_cutoff_label">
            <property name="text">
-            <string>VAD Cutoff</string>
+            <string>VAD 阈值</string>
            </property>
            <property name="buddy">
             <cstring>vad_cutoff</cstring>
@@ -98,7 +98,7 @@
          <item>
           <widget class="QLabel" name="vad_rolloff_label">
            <property name="text">
-            <string>VAD Rolloff</string>
+            <string>VAD 释放时间</string>
            </property>
            <property name="buddy">
             <cstring>vad_rolloff</cstring>
@@ -136,7 +136,7 @@
        <item>
         <widget class="QCheckBox" name="input_agc">
          <property name="text">
-          <string>Dynamic Automatic Gain Control</string>
+          <string>动态自动增益控制</string>
          </property>
         </widget>
        </item>
@@ -157,13 +157,13 @@
      </widget>
      <widget class="QWidget" name="output">
       <attribute name="title">
-       <string>Output</string>
+       <string>输出</string>
       </attribute>
       <layout class="QVBoxLayout" name="verticalLayout_7">
        <item>
         <widget class="QCheckBox" name="output_filter">
          <property name="text">
-          <string>Filter entire Output using RNNoise</string>
+          <string>使用 RNNoise 过滤整个输出</string>
          </property>
         </widget>
        </item>
@@ -183,7 +183,7 @@
        <item>
         <widget class="QLabel" name="label">
          <property name="text">
-          <string>Individual Filters</string>
+          <string>单独过滤</string>
          </property>
         </widget>
        </item>
@@ -201,7 +201,7 @@
           </font>
          </property>
          <property name="placeholderText">
-          <string>UUIDs for individual filtering (Comma or Newline separated)</string>
+          <string>单独过滤的 UUID（用逗号或换行分隔）</string>
          </property>
         </widget>
        </item>
@@ -259,7 +259,7 @@
         </font>
        </property>
        <property name="text">
-        <string>&amp;OK</string>
+        <string>&amp;确定</string>
        </property>
        <property name="default">
         <bool>true</bool>
@@ -277,7 +277,7 @@
         </font>
        </property>
        <property name="text">
-        <string>&amp;Cancel</string>
+        <string>&amp;取消</string>
        </property>
        <property name="autoDefault">
         <bool>false</bool>
@@ -287,7 +287,7 @@
      <item>
       <widget class="QPushButton" name="pbApply">
        <property name="text">
-        <string>Apply</string>
+        <string>应用</string>
        </property>
       </widget>
      </item>
