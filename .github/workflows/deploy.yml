@@ -1,157 +1,159 @@
-name: Build and Deploy
-
-on:
-  push:
-    branches:
-      - '**'
-    tags:
-      - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
-  pull_request:
-    branches:
-      - '**'
-  workflow_dispatch:
-
-env:
-  PLUGIN_NAME: JUL14Ns_Audio_Mods
-
-jobs:
-  prebuild:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Set Variables
-        run: |
-          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
-            VERSION="$(echo ${GITHUB_REF#refs/tags/v})"
-          else
-            VERSION="0.0.0-dev"
-          fi
-          sed -i "s/<version>/${VERSION}/g" deploy/package.ini
-          sed -i "s/<version>/${VERSION}/g" src/definitions.hpp
-          sed -i "s/<plugin_name>/${{ env.PLUGIN_NAME }}/g" CMakeLists.txt
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: prebuild
-          path: |
-            deploy/package.ini
-            src/definitions.hpp
-            CMakeLists.txt
-
-  build:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: windows-2022
-            arch: x64
-          - os: windows-2022
-            arch: x86
-          - os: ubuntu-latest
-            arch: x64
-          - os: macos-latest
-            arch: x64
-    runs-on: ${{ matrix.os }}
-    needs: prebuild
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: true
-      - name: Download prebuild
-        uses: actions/download-artifact@v4
-        with:
-          name: prebuild
-          path: .
-      - name: Setup MSVC (Windows only)
-        uses: ilammy/msvc-dev-cmd@v1
-        if: startsWith(matrix.os, 'windows-')
-        with:
-          arch: ${{ matrix.arch }}
-      - name: Install Qt
-        uses: jurplel/install-qt-action@v3
-        if: ${{ !startsWith(matrix.os, 'macos-') }}
-        with:
-          version: '5.15.2'
-          target: 'desktop'
-          modules: 'qtcharts'
-          arch: ${{ startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'win64_msvc2019_64' || 'win32_msvc2019' ) || (matrix.os == 'ubuntu-latest' && 'gcc_64' || 'clang_64') }}
-          dir: '${{ github.workspace }}'
-          cache: true
-          cache-key-prefix: ${{ runner.os }}-${{ matrix.arch }}-Qt
-      - name: Install Qt (macOS)
-        if: ${{ startsWith(matrix.os, 'macos-') }}
-        run: |
-          brew install qt@5
-      - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.14
-      - name: Build
-        shell: bash
-        run: |
-          EXTRA_ARGS=""
-          if [[ "${{ startsWith(matrix.os, 'macos-') }}" == "true" ]]; then
-            EXTRA_ARGS="-DCMAKE_PREFIX_PATH=$(brew --prefix qt@5)"
-          fi
-          cmake ${{startsWith(matrix.os, 'windows-') && '-A' || ''}} ${{startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} ${EXTRA_ARGS} .
-          cmake --build . --config Release
-      - name: Rename release (Windows)
-        if: startsWith(matrix.os, 'windows-')
-        run: |
-          mv Release/${{ env.PLUGIN_NAME }}.dll ${{ env.PLUGIN_NAME }}_win${{ matrix.arch == 'x64' && '64' || '32' }}.dll
-      - name: Rename release (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: |
-          mv lib${{ env.PLUGIN_NAME }}.so ${{ env.PLUGIN_NAME }}_linux_amd64.so
-      - name: Rename release (MacOS)
-        if: startsWith(matrix.os, 'macos-')
-        run: |
-          mv lib${{ env.PLUGIN_NAME }}.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
-          install_name_tool -id ${{ env.PLUGIN_NAME }}_mac.dylib -change @rpath/QtWidgets.framework/Versions/5/QtWidgets @rpath/libQt5Widgets.dylib -change @rpath/QtGui.framework/Versions/5/QtGui @rpath/libQt5Gui.dylib -change @rpath/QtCore.framework/Versions/5/QtCore @rpath/libQt5Core.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
-      - name: Archive production artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ matrix.os }}${{ matrix.arch }}
-          path: ${{ env.PLUGIN_NAME }}_[win|linux|mac]*.*
-
-  release:
-    if: startsWith(github.ref, 'refs/tags/v')
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-      - name: Download prebuild
-        uses: actions/download-artifact@v4
-        with:
-          name: prebuild
-          path: .
-      - name: Remove old artifacts
-        uses: geekyeggo/delete-artifact@v4
-        with:
-          name: prebuild
-      - name: Create Tmp Folder
-        run: |
-          mkdir -p tmp
-      - name: Collect artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: tmp
-      - name: Move artifacts to release
-        run: |
-          mv tmp/**/* deploy/plugins/
-      - name: Install zip
-        uses: montudor/action-zip@v1
-      - name: Zip output
-        run: zip -qq -r ../${{ env.PLUGIN_NAME }}.zip .
-        working-directory: deploy
-      - name: Rename release
-        run: |
-          mv ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
-      - name: Release
-        uses: softprops/action-gh-release@v1
-        with:
-          files: |
-            ./${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
-          draft: false
-          prerelease: false
+diff --git a/.github/workflows/deploy.yml b/.github/workflows/deploy.yml
+index a4cd06833419d89121249a98e1063a5f4451a4a8..df1f678839237bbdf643fe56298504680e09cd40 100644
+--- a/.github/workflows/deploy.yml
++++ b/.github/workflows/deploy.yml
+@@ -1,123 +1,143 @@
+ name: Build and Deploy
+ 
+ on:
+   push:
++    branches:
++      - '**'
+     tags:
+       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
++  pull_request:
++    branches:
++      - '**'
++  workflow_dispatch:
+ 
+ env:
+   PLUGIN_NAME: JUL14Ns_Audio_Mods
+ 
+ jobs:
+   prebuild:
+     runs-on: ubuntu-latest
+     steps:
+       - name: Checkout
+         uses: actions/checkout@v4
+       - name: Set Variables
+-        # Version is the tag name without the v
+         run: |
+-          sed -i "s/<version>/$(echo ${GITHUB_REF#refs/tags/v})/g" deploy/package.ini
+-          sed -i "s/<version>/$(echo ${GITHUB_REF#refs/tags/v})/g" src/definitions.hpp
++          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
++            VERSION="$(echo ${GITHUB_REF#refs/tags/v})"
++          else
++            VERSION="0.0.0-dev"
++          fi
++          sed -i "s/<version>/${VERSION}/g" deploy/package.ini
++          sed -i "s/<version>/${VERSION}/g" src/definitions.hpp
+           sed -i "s/<plugin_name>/${{ env.PLUGIN_NAME }}/g" CMakeLists.txt
+       - name: Archive production artifacts
+         uses: actions/upload-artifact@v4
+         with:
+           name: prebuild
+           path: |
+             deploy/package.ini
+             src/definitions.hpp
+             CMakeLists.txt
+ 
+   build:
+     strategy:
+       fail-fast: false
+       matrix:
+         include:
+-          - os: windows-2019
++          - os: windows-2022
+             arch: x64
+-          - os: windows-2019
++          - os: windows-2022
+             arch: x86
+           - os: ubuntu-latest
+             arch: x64
+           - os: macos-latest
+             arch: x64
+     runs-on: ${{ matrix.os }}
+     needs: prebuild
+     steps:
+       - name: Checkout
+         uses: actions/checkout@v4
+         with:
+           submodules: true
+       - name: Download prebuild
+         uses: actions/download-artifact@v4
+         with:
+           name: prebuild
+           path: .
+       - name: Setup MSVC (Windows only)
+         uses: ilammy/msvc-dev-cmd@v1
+-        if: matrix.os == 'windows-2019'
++        if: startsWith(matrix.os, 'windows-')
+         with:
+           arch: ${{ matrix.arch }}
+-          toolset: 14.0
+       - name: Install Qt
+         uses: jurplel/install-qt-action@v3
++        if: ${{ !startsWith(matrix.os, 'macos-') }}
+         with:
+           version: '5.15.2'
+           target: 'desktop'
+           modules: 'qtcharts'
+-          arch: ${{ matrix.os == 'windows-2019' && (matrix.arch == 'x64' && 'win64_msvc2019_64' || 'win32_msvc2019' ) || (matrix.os == 'ubuntu-latest' && 'gcc_64' || 'clang_64') }}
++          arch: ${{ startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'win64_msvc2019_64' || 'win32_msvc2019' ) || (matrix.os == 'ubuntu-latest' && 'gcc_64' || 'clang_64') }}
+           dir: '${{ github.workspace }}'
+           cache: true
+           cache-key-prefix: ${{ runner.os }}-${{ matrix.arch }}-Qt
++      - name: Install Qt (macOS)
++        if: ${{ startsWith(matrix.os, 'macos-') }}
++        run: |
++          brew install qt@5
+       - name: Setup cmake
+         uses: jwlawson/actions-setup-cmake@v1.14
+       - name: Build
++        shell: bash
+         run: |
+-          cmake ${{matrix.os == 'windows-2019' && '-A' || ''}} ${{matrix.os == 'windows-2019' && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} .
++          EXTRA_ARGS=""
++          if [[ "${{ startsWith(matrix.os, 'macos-') }}" == "true" ]]; then
++            EXTRA_ARGS="-DCMAKE_PREFIX_PATH=$(brew --prefix qt@5)"
++          fi
++          cmake ${{startsWith(matrix.os, 'windows-') && '-A' || ''}} ${{startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} ${EXTRA_ARGS} .
+           cmake --build . --config Release
+       - name: Rename release (Windows)
+-        if: matrix.os == 'windows-2019'
++        if: startsWith(matrix.os, 'windows-')
+         run: |
+           mv Release/${{ env.PLUGIN_NAME }}.dll ${{ env.PLUGIN_NAME }}_win${{ matrix.arch == 'x64' && '64' || '32' }}.dll
+       - name: Rename release (Linux)
+         if: matrix.os == 'ubuntu-latest'
+         run: |
+           mv lib${{ env.PLUGIN_NAME }}.so ${{ env.PLUGIN_NAME }}_linux_amd64.so
+       - name: Rename release (MacOS)
+-        if: matrix.os == 'macos-latest'
++        if: startsWith(matrix.os, 'macos-')
+         run: |
+           mv lib${{ env.PLUGIN_NAME }}.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
+           install_name_tool -id ${{ env.PLUGIN_NAME }}_mac.dylib -change @rpath/QtWidgets.framework/Versions/5/QtWidgets @rpath/libQt5Widgets.dylib -change @rpath/QtGui.framework/Versions/5/QtGui @rpath/libQt5Gui.dylib -change @rpath/QtCore.framework/Versions/5/QtCore @rpath/libQt5Core.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
+       - name: Archive production artifacts
+         uses: actions/upload-artifact@v4
+         with:
+           name: ${{ matrix.os }}${{ matrix.arch }}
+           path: ${{ env.PLUGIN_NAME }}_[win|linux|mac]*.*
+ 
+   release:
++    if: startsWith(github.ref, 'refs/tags/v')
+     needs: build
+     runs-on: ubuntu-latest
+     steps:
+       - name: Checkout
+         uses: actions/checkout@v4
+       - name: Download prebuild
+         uses: actions/download-artifact@v4
+         with:
+           name: prebuild
+           path: .
+       - name: Remove old artifacts
+         uses: geekyeggo/delete-artifact@v4
+         with:
+           name: prebuild
+       - name: Create Tmp Folder
+         run: |
+           mkdir -p tmp
+       - name: Collect artifacts
+         uses: actions/download-artifact@v4
+         with:
+           path: tmp
+       - name: Move artifacts to release
+         run: |
+           mv tmp/**/* deploy/plugins/
+       - name: Install zip
