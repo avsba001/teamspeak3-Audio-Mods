@@ -3,4 +3,4 @@
 	url = https://github.com/teamspeak/ts3client-pluginsdk/
 [submodule "3rdParty/rnnoise"]
 	path = 3rdParty/rnnoise
-	url = https://github.com/Gamer92000/rnnoise
+	url = https://github.com/xiph/rnnoise.git
