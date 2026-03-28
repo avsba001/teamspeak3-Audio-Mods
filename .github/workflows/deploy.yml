@@ -69,6 +69,7 @@ jobs:
           arch: ${{ matrix.arch }}
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
+        if: ${{ !startsWith(matrix.os, 'macos-') }}
         with:
           version: '5.15.2'
           target: 'desktop'
@@ -77,6 +78,10 @@ jobs:
           dir: '${{ github.workspace }}'
           cache: true
           cache-key-prefix: ${{ runner.os }}-${{ matrix.arch }}-Qt
+      - name: Install Qt (macOS)
+        if: ${{ startsWith(matrix.os, 'macos-') }}
+        run: |
+          brew install qt@5
       - name: Setup cmake
         uses: jwlawson/actions-setup-cmake@v1.14
       - name: Build
