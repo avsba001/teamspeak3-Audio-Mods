@@ -13,13 +13,14 @@ on:
 
 env:
   PLUGIN_NAME: JUL14Ns_Audio_Mods
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 jobs:
   prebuild:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set Variables
         run: |
           if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
@@ -31,7 +32,7 @@ jobs:
           sed -i "s/<version>/${VERSION}/g" src/definitions.hpp
           sed -i "s/<plugin_name>/${{ env.PLUGIN_NAME }}/g" CMakeLists.txt
       - name: Archive production artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: prebuild
           path: |
@@ -56,16 +57,16 @@ jobs:
     needs: prebuild
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           submodules: true
       - name: Download prebuild
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: prebuild
           path: .
       - name: Setup MSVC (Windows only)
-        uses: ilammy/msvc-dev-cmd@v1
+        uses: ilammy/msvc-dev-cmd@v2
         if: startsWith(matrix.os, 'windows-')
         with:
           arch: ${{ matrix.arch }}
@@ -78,14 +79,13 @@ jobs:
           modules: 'qtcharts'
           arch: ${{ startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'win64_msvc2019_64' || 'win32_msvc2019' ) || (matrix.os == 'ubuntu-latest' && 'gcc_64' || 'clang_64') }}
           dir: '${{ github.workspace }}'
-          cache: true
-          cache-key-prefix: ${{ runner.os }}-${{ matrix.arch }}-Qt
+          cache: false
       - name: Install Qt (macOS)
         if: ${{ startsWith(matrix.os, 'macos-') }}
         run: |
           brew install qt@5
       - name: Setup cmake
-        uses: jwlawson/actions-setup-cmake@v1.14
+        uses: jwlawson/actions-setup-cmake@v2
       - name: Build
         shell: bash
         run: |
@@ -109,32 +109,32 @@ jobs:
           mv lib${{ env.PLUGIN_NAME }}.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
           install_name_tool -id ${{ env.PLUGIN_NAME }}_mac.dylib -change @rpath/QtWidgets.framework/Versions/5/QtWidgets @rpath/libQt5Widgets.dylib -change @rpath/QtGui.framework/Versions/5/QtGui @rpath/libQt5Gui.dylib -change @rpath/QtCore.framework/Versions/5/QtCore @rpath/libQt5Core.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
       - name: Archive production artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v5
         with:
           name: ${{ matrix.os }}${{ matrix.arch }}
           path: ${{ env.PLUGIN_NAME }}_[win|linux|mac]*.*
 
   release:
-    #if: startsWith(github.ref, 'refs/tags/v')
+    if: github.event_name == 'push'
     needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Download prebuild
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           name: prebuild
           path: .
       - name: Remove old artifacts
-        uses: geekyeggo/delete-artifact@v4
+        uses: geekyeggo/delete-artifact@v5
         with:
           name: prebuild
       - name: Create Tmp Folder
         run: |
           mkdir -p tmp
       - name: Collect artifacts
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v5
         with:
           path: tmp
       - name: Move artifacts to release
@@ -145,13 +145,20 @@ jobs:
       - name: Zip output
         run: zip -qq -r ../${{ env.PLUGIN_NAME }}.zip .
         working-directory: deploy
+      - name: Generate release tag
+        run: |
+          TAG="v0.0.0-auto-${GITHUB_RUN_NUMBER}-${GITHUB_SHA::7}"
+          echo "RELEASE_TAG=${TAG}" >> $GITHUB_ENV
+
       - name: Rename release
         run: |
-          mv ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
+          mv ${{ env.PLUGIN_NAME }}.zip ${{ env.PLUGIN_NAME }}.${{ env.RELEASE_TAG }}.ts3_plugin
       - name: Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ env.RELEASE_TAG }}
+          target_commitish: ${{ github.sha }}
           files: |
-            ./${{ env.PLUGIN_NAME }}.${{ github.ref_name }}.ts3_plugin
+            ./${{ env.PLUGIN_NAME }}.${{ env.RELEASE_TAG }}.ts3_plugin
           draft: false
           prerelease: false
