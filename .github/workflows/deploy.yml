@@ -50,7 +50,7 @@ jobs:
             arch: x86
           - os: ubuntu-latest
             arch: x64
-          - os: macos-latest
+          - os: macos-13
             arch: x64
     runs-on: ${{ matrix.os }}
     needs: prebuild
@@ -83,7 +83,7 @@ jobs:
         uses: jwlawson/actions-setup-cmake@v1.14
       - name: Build
         run: |
-          cmake ${{startsWith(matrix.os, 'windows-') && '-A' || ''}} ${{startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} .
+          cmake ${{startsWith(matrix.os, 'windows-') && '-A' || ''}} ${{startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} ${{startsWith(matrix.os, 'macos-') && '-DCMAKE_OSX_ARCHITECTURES=x86_64' || ''}} .
           cmake --build . --config Release
       - name: Rename release (Windows)
         if: startsWith(matrix.os, 'windows-')
@@ -94,7 +94,7 @@ jobs:
         run: |
           mv lib${{ env.PLUGIN_NAME }}.so ${{ env.PLUGIN_NAME }}_linux_amd64.so
       - name: Rename release (MacOS)
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos-')
         run: |
           mv lib${{ env.PLUGIN_NAME }}.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
           install_name_tool -id ${{ env.PLUGIN_NAME }}_mac.dylib -change @rpath/QtWidgets.framework/Versions/5/QtWidgets @rpath/libQt5Widgets.dylib -change @rpath/QtGui.framework/Versions/5/QtGui @rpath/libQt5Gui.dylib -change @rpath/QtCore.framework/Versions/5/QtCore @rpath/libQt5Core.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
