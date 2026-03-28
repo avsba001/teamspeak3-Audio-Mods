@@ -2,8 +2,14 @@ name: Build and Deploy
 
 on:
   push:
+    branches:
+      - '**'
     tags:
       - 'v*' # Push events to matching v*, i.e. v1.0, v20.15.10
+  pull_request:
+    branches:
+      - '**'
+  workflow_dispatch:
 
 env:
   PLUGIN_NAME: JUL14Ns_Audio_Mods
@@ -15,10 +21,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Set Variables
-        # Version is the tag name without the v
         run: |
-          sed -i "s/<version>/$(echo ${GITHUB_REF#refs/tags/v})/g" deploy/package.ini
-          sed -i "s/<version>/$(echo ${GITHUB_REF#refs/tags/v})/g" src/definitions.hpp
+          if [[ "${GITHUB_REF}" == refs/tags/v* ]]; then
+            VERSION="$(echo ${GITHUB_REF#refs/tags/v})"
+          else
+            VERSION="0.0.0-dev"
+          fi
+          sed -i "s/<version>/${VERSION}/g" deploy/package.ini
+          sed -i "s/<version>/${VERSION}/g" src/definitions.hpp
           sed -i "s/<plugin_name>/${{ env.PLUGIN_NAME }}/g" CMakeLists.txt
       - name: Archive production artifacts
         uses: actions/upload-artifact@v4
@@ -34,13 +44,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: windows-2019
+          - os: windows-2022
             arch: x64
-          - os: windows-2019
+          - os: windows-2022
             arch: x86
           - os: ubuntu-latest
             arch: x64
-          - os: macos-latest
+          - os: macos-13
             arch: x64
     runs-on: ${{ matrix.os }}
     needs: prebuild
@@ -56,17 +66,16 @@ jobs:
           path: .
       - name: Setup MSVC (Windows only)
         uses: ilammy/msvc-dev-cmd@v1
-        if: matrix.os == 'windows-2019'
+        if: startsWith(matrix.os, 'windows-')
         with:
           arch: ${{ matrix.arch }}
-          toolset: 14.0
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
           version: '5.15.2'
           target: 'desktop'
           modules: 'qtcharts'
-          arch: ${{ matrix.os == 'windows-2019' && (matrix.arch == 'x64' && 'win64_msvc2019_64' || 'win32_msvc2019' ) || (matrix.os == 'ubuntu-latest' && 'gcc_64' || 'clang_64') }}
+          arch: ${{ startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'win64_msvc2019_64' || 'win32_msvc2019' ) || (matrix.os == 'ubuntu-latest' && 'gcc_64' || 'clang_64') }}
           dir: '${{ github.workspace }}'
           cache: true
           cache-key-prefix: ${{ runner.os }}-${{ matrix.arch }}-Qt
@@ -74,10 +83,10 @@ jobs:
         uses: jwlawson/actions-setup-cmake@v1.14
       - name: Build
         run: |
-          cmake ${{matrix.os == 'windows-2019' && '-A' || ''}} ${{matrix.os == 'windows-2019' && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} .
+          cmake ${{startsWith(matrix.os, 'windows-') && '-A' || ''}} ${{startsWith(matrix.os, 'windows-') && (matrix.arch == 'x64' && 'x64' || 'Win32') || '' }} ${{startsWith(matrix.os, 'macos-') && '-DCMAKE_OSX_ARCHITECTURES=x86_64' || ''}} .
           cmake --build . --config Release
       - name: Rename release (Windows)
-        if: matrix.os == 'windows-2019'
+        if: startsWith(matrix.os, 'windows-')
         run: |
           mv Release/${{ env.PLUGIN_NAME }}.dll ${{ env.PLUGIN_NAME }}_win${{ matrix.arch == 'x64' && '64' || '32' }}.dll
       - name: Rename release (Linux)
@@ -85,7 +94,7 @@ jobs:
         run: |
           mv lib${{ env.PLUGIN_NAME }}.so ${{ env.PLUGIN_NAME }}_linux_amd64.so
       - name: Rename release (MacOS)
-        if: matrix.os == 'macos-latest'
+        if: startsWith(matrix.os, 'macos-')
         run: |
           mv lib${{ env.PLUGIN_NAME }}.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
           install_name_tool -id ${{ env.PLUGIN_NAME }}_mac.dylib -change @rpath/QtWidgets.framework/Versions/5/QtWidgets @rpath/libQt5Widgets.dylib -change @rpath/QtGui.framework/Versions/5/QtGui @rpath/libQt5Gui.dylib -change @rpath/QtCore.framework/Versions/5/QtCore @rpath/libQt5Core.dylib ${{ env.PLUGIN_NAME }}_mac.dylib
@@ -96,6 +105,7 @@ jobs:
           path: ${{ env.PLUGIN_NAME }}_[win|linux|mac]*.*
 
   release:
+    if: startsWith(github.ref, 'refs/tags/v')
     needs: build
     runs-on: ubuntu-latest
     steps:
