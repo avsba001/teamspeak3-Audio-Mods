@@ -1,4 +1,4 @@
-# 🔧 JUL14Ns 音频增强插件
+# 🔧 音频增强插件
 
 <div align="center">
 
@@ -11,7 +11,7 @@
 
 ## 📖 项目简介
 
-*JUL14Ns Audio Mods* 是一个用于 TeamSpeak 3 的插件，为音频系统增加了一些功能。
+*Audio Mods* 是一个用于 TeamSpeak 3 的插件，为音频系统增加了一些功能。
 
 它允许你使用 [RNNoise](https://jmvalin.ca/demo/rnnoise/) 库对背景噪声进行过滤，同时提供可配置的语音激活检测（VAD），以及一个不会将噪声无限放大的压缩器。
 
